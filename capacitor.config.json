@@ -1,0 +1,8 @@
+{
+  "appId": "com.repcheck.ai",
+  "appName": "렙체크 AI",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

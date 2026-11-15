@@ -1,0 +1,25 @@
+{
+  "name": "repcheck",
+  "version": "1.0.0",
+  "description": "반복 품질 분석 기반 부상 예방형 웨이트 트레이닝 AI 자세 분석 앱",
+  "scripts": {
+    "setup": "node scripts/setup-vendor.mjs",
+    "postinstall": "node scripts/setup-vendor.mjs",
+    "test": "node test/synthetic.mjs",
+    "serve": "npx --yes http-server www -p 8080 -c-1",
+    "sync": "npx cap sync android",
+    "open": "npx cap open android"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.10",
+    "@mediapipe/tasks-vision": "^1.2.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/cli": "^7.6.10"
+  },
+  "type": "module",
+  "private": true
+}
