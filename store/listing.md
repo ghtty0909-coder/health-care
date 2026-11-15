@@ -41,6 +41,6 @@ PT 없이 혼자 웨이트를 하면 내 자세가 맞는지, 세트 후반에 �
 전체 이용가 (폭력·선정성·사행성·사용자 간 소통 없음)
 
 ## 판매자 정보
-- 이메일: [연락처 이메일]
+- 이메일: ghtty0909@gmail.com
 - 웹사이트: https://<GitHub아이디>.github.io/repcheck/
 - 개인정보처리방침: https://<GitHub아이디>.github.io/repcheck/privacy.html
