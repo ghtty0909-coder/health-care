@@ -76,7 +76,7 @@ npm run serve
 | 증상 | 해결 |
 |---|---|
 | `SDK location not found` | Android Studio → File → Project Structure → SDK Location 확인 후 다시 sync |
-| `Unsupported class file major version` / JDK 오류 | Settings → Build Tools → Gradle → Gradle JDK를 **jbr-21**(Android Studio 내장)로 선택 |
+| `Incompatible Gradle JVM version` / `Unsupported class file major version` | 오류 창의 **Apply compatible Gradle JDK configuration and sync** 클릭. 안 되면 Settings → Build Tools → Gradle → Gradle JDK를 **21**(없으면 Download JDK → 21, Eclipse Temurin)로 선택 후 다시 Sync |
 | 폰이 목록에 안 보임 | USB 케이블을 데이터 전송용으로 바꾸고, 폰 알림에서 USB 모드를 "파일 전송"으로 |
 | "Play 프로텍트에서 차단" 팝업 | 구글 플레이에 없는 새 앱이라 뜨는 경고예요. **세부정보 → 무시하고 설치** |
 | 분석이 너무 느림 | 1분 이내 영상으로 잘라서 올리기. 4K 대신 1080p로 촬영 |
