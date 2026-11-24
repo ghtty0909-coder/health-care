@@ -42,5 +42,5 @@ PT 없이 혼자 웨이트를 하면 내 자세가 맞는지, 세트 후반에 �
 
 ## 판매자 정보
 - 이메일: ghtty0909@gmail.com
-- 웹사이트: https://<GitHub아이디>.github.io/repcheck/
-- 개인정보처리방침: https://<GitHub아이디>.github.io/repcheck/privacy.html
+- 웹사이트: https://ghtty0909-coder.github.io/health-care/
+- 개인정보처리방침: https://ghtty0909-coder.github.io/health-care/privacy.html

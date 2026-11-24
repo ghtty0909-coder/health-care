@@ -39,8 +39,8 @@ git --version
 ## 2. 코드 받기와 준비
 
 ```
-git clone https://github.com/<내아이디>/repcheck.git
-cd repcheck
+git clone https://github.com/ghtty0909-coder/health-care.git
+cd health-care
 npm install
 npx cap sync android
 ```
@@ -60,7 +60,7 @@ npm run serve
 
 ## 3. 내 폰에 설치해서 실행하기
 
-1. `npx cap open android` 실행 (또는 Android Studio → Open → `repcheck/android` 폴더 선택)
+1. `npx cap open android` 실행 (또는 Android Studio → Open → `health-care/android` 폴더 선택)
 2. 오른쪽 아래에 **Gradle sync** 진행 표시가 끝날 때까지 기다려요. 처음엔 5~15분 걸릴 수 있어요.
 3. 폰 준비:
    - 설정 → 휴대전화 정보 → 소프트웨어 정보 → **빌드 번호를 7번** 탭 → 개발자 모드 켜짐
@@ -126,7 +126,7 @@ npm run serve
 
 1. GitHub 저장소 → **Settings → Pages**
 2. Source: **Deploy from a branch**, Branch: **main**, 폴더: **/docs** → Save
-3. 1~2분 뒤 `https://<내아이디>.github.io/repcheck/privacy.html` 이 열리면 성공
+3. 1~2분 뒤 `https://ghtty0909-coder.github.io/health-care/privacy.html` 이 열리면 성공
 4. 이 주소를 원스토어 등록 화면의 개인정보처리방침 칸(있을 경우)과 판매자 웹사이트 칸에 넣어요.
 
 ---
