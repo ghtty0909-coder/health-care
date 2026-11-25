@@ -121,7 +121,7 @@ function metricLine(ex, m, partial) {
   let html = defs.filter((d) => Number.isFinite(m[d.key]))
     .map((d) => `<span>${d.label} <b>${fmt(m[d.key], d.digits ?? 0)}${d.unit}</b></span>`).join('');
   if (Number.isFinite(m.lrDiff)) html += `<span>좌우 차이 <b>${fmt(m.lrDiff)}°</b></span>`;
-  if (ex === 'squat') html += `<span>깊이 <b>${m.hipBelowKnee ? '평행 이하' : m.depth <= 110 ? '평행 근처' : '얕음'}</b></span>`;
+  if (ex === 'squat') html += `<span>깊이 <b>${m.shallow ? '얕음' : '충분'}</b></span>`;
   if (partial) html += '<span class="tag">영상 끝에서 잘림</span>';
   return html;
 }

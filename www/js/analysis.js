@@ -136,31 +136,52 @@ export function detectView(feats) {
 }
 
 // 반복 구간 찾기: norm 0(휴식) → 1(최대 동작) → 0
-export function segmentReps(times, signal, { activeIsMin, minRange, enter = 0.55, exit = 0.22, minDur = 0.5 }) {
+export function segmentReps(times, signal, { activeIsMin, minRange, enter = 0.45, exit = 0.22, minDur = 0.5 }) {
   const hi = percentile(signal, 0.97), lo = percentile(signal, 0.03);
   const range = hi - lo;
   if (!Number.isFinite(range) || range < minRange) return { reps: [], range, hi, lo };
   const norm = signal.map((s) => (activeIsMin ? (hi - s) / range : (s - lo) / range));
   const reps = [];
   let state = norm[0] < exit ? 'rest' : 'wait';
-  let lastRest = 0, start = 0, peak = 0;
+  let lastRest = 0, start = 0, peak = 0, waitPeak = 0;
   for (let i = 0; i < norm.length; i++) {
     const v = norm[i];
     if (state === 'wait') {
-      if (v < exit) { state = 'rest'; lastRest = i; }
+      // 영상이 동작 중간에서 시작: 최대점까지 갔다가 돌아오면 첫 반복으로 인정
+      if (v > norm[waitPeak]) waitPeak = i;
+      if (v < exit) {
+        if (norm[waitPeak] > 0.85 && waitPeak > 0 && times[i] - times[0] >= minDur) reps.push({ start: 0, peak: waitPeak, end: i, lead: true });
+        state = 'rest'; lastRest = i;
+      }
     } else if (state === 'rest') {
       if (v < exit) lastRest = i;
       if (v > enter) { state = 'active'; start = lastRest; peak = i; }
     } else {
       if (v > norm[peak]) peak = i;
-      if (v < exit) {
+      // 한 프레임만 튀는 인식 오류로 반복이 둘로 쪼개지지 않게, 다음 프레임도 휴식 쪽일 때만 종료
+      if (v < exit && (i + 1 >= norm.length || norm[i + 1] < exit * 1.5)) {
         if (times[i] - times[start] >= minDur) reps.push({ start, peak, end: i });
         state = 'rest'; lastRest = i;
       }
     }
   }
+  // 영상 끝에서 끊긴 반복: 앞 반복들 길이의 절반 이상일 때만 인정 (세트 후 일어서는 동작 등 제외)
   if (state === 'active' && norm[peak] > 0.7) {
-    reps.push({ start, peak, end: norm.length - 1, partial: true });
+    const durs = reps.map((r) => times[r.end] - times[r.start]).sort((a, b) => a - b);
+    const med = durs.length ? durs[Math.floor(durs.length / 2)] : 0;
+    if (times[norm.length - 1] - times[start] >= 0.6 * med) reps.push({ start, peak, end: norm.length - 1, partial: true });
+  }
+  // 인식 오류로 생긴 아주 짧은 반복: 바로 앞 반복에 붙이거나 버림
+  if (reps.length >= 3) {
+    const durs = reps.map((r) => times[r.end] - times[r.start]).sort((a, b) => a - b);
+    const med = durs[Math.floor(durs.length / 2)];
+    for (let k = reps.length - 1; k >= 0; k--) {
+      const r = reps[k];
+      if (times[r.end] - times[r.start] >= 0.45 * med) continue;
+      const prev = reps[k - 1];
+      if (prev && times[r.start] - times[prev.end] < 0.4) prev.end = r.end;
+      reps.splice(k, 1);
+    }
   }
   return { reps, range, hi, lo, norm };
 }
@@ -207,7 +228,8 @@ export const EXERCISES = {
 // worse: 'up'이면 값이 커질수록 나쁨, 'down'이면 작아질수록 나쁨. tol: 기준(첫 3회) 대비 허용 오차
 const METRICS = {
   squat: [
-    { key: 'depth', label: '최저 무릎 각도', unit: '°', worse: 'up', tol: 12 },
+    // 무릎 각도는 가려지거나 튀는 경우가 많아, 엉덩이가 내려간 높이(상체 길이 대비 %)로 깊이 변화를 봄
+    { key: 'drop', label: '앉은 깊이', unit: '%', worse: 'down', tol: 0.3, rel: true },
     { key: 'lean', label: '최저점 상체 기울기', unit: '°', worse: 'up', tol: 10 },
   ],
   deadlift: [
@@ -251,6 +273,10 @@ function repMetrics(ex, feats, rep, ctx) {
   if (ex === 'squat') {
     m.depth = pick(pk, s, 'knee');
     m.lean = lean(pk);
+    const k2 = view === 'front' ? 'L' : side;
+    const hy = sl.map((f) => (view === 'front' ? (f.hipYL + f.hipYR) / 2 : f['hipY' + k2])).sort((a, b) => a - b);
+    const tl = percentile(sl.map((f) => f.torsoLen), 0.5) || 1;
+    m.drop = ((percentile(hy, 0.9) - percentile(hy, 0.1)) / tl) * 100;
     if (view === 'side') {
       const hipY = pk['hipY' + side], knY = pk['knY' + side];
       m.hipBelowKnee = hipY >= knY - 0.02 * pk.torsoLen;
@@ -375,7 +401,9 @@ export function analyzeSet(rawFrames, ex, opts = {}) {
         const b = baseline[d.key], v = r.m[d.key];
         if (!Number.isFinite(b) || !Number.isFinite(v)) continue;
         const dev = d.worse === 'up' ? v - b : b - v;
-        if (dev > d.tol) r.breakdown.push(`${d.label} ${dev.toFixed(d.digits ?? 0)}${d.unit} 나빠짐`);
+        if (d.rel) {
+          if (b > 0 && dev / b > d.tol) r.breakdown.push(`${d.label} ${Math.round((dev / b) * 100)}% 줄어듦`);
+        } else if (dev > d.tol) r.breakdown.push(`${d.label} ${dev.toFixed(d.digits ?? 0)}${d.unit} 나빠짐`);
       }
       if (r.breakdown.length && breakdownRep === null) breakdownRep = r.n;
     }
@@ -398,7 +426,14 @@ export function analyzeSet(rawFrames, ex, opts = {}) {
     shTiltAvg: view === 'front' ? mean(reps.map((r) => r.m.shTilt)) : NaN,
   };
   if (ex === 'squat') {
-    summary.depthOkCount = reps.filter((r) => r.m.hipBelowKnee || r.m.depth <= 100).length;
+    // 깊이: 첫 3회 대비 엉덩이가 30% 넘게 덜 내려가면 얕음
+    for (const r of reps) {
+      r.m.shallow = baseline.drop > 0 && r.m.drop < baseline.drop * 0.7;
+      if (r.m.shallow && !r.warn.includes('깊이 부족 (얕은 스쿼트)')) r.warn.push('깊이 부족 (얕은 스쿼트)');
+    }
+    for (const r of reps) r.score = Math.max(0, 100 - 15 * r.warn.length - 10 * r.breakdown.length - (r.partial ? 20 : 0));
+    summary.avgScore = Math.round(mean(reps.map((r) => r.score))) || 0;
+    summary.depthOkCount = reps.filter((r) => !r.m.shallow && !r.warn.includes('깊이 부족 (얕은 스쿼트)')).length;
   }
 
   const tips = buildTips(ex, reps, summary, view);
