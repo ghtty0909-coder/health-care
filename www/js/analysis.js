@@ -114,6 +114,9 @@ export function computeFeatures(p) {
     shYL: g(L.lSh).y, shYR: g(L.rSh).y,
     knYL: g(L.lKn).y, knYR: g(L.rKn).y,
     wrYL: g(L.lWr).y, wrYR: g(L.rWr).y,
+    // 손목과 정강이(무릎·발목 중간) 사이 가로 거리: 바벨이 몸에서 떨어진 정도
+    barL: Math.abs(g(L.lWr).x - (g(L.lKn).x + g(L.lAn).x) / 2),
+    barR: Math.abs(g(L.rWr).x - (g(L.rKn).x + g(L.rAn).x) / 2),
     shXL: g(L.lSh).x, shXR: g(L.rSh).x,
     hipXL: g(L.lHip).x, hipXR: g(L.rHip).x,
     torsoLen: (Math.hypot(g(L.lSh).x - g(L.lHip).x, g(L.lSh).y - g(L.lHip).y) +
@@ -235,6 +238,7 @@ const METRICS = {
   deadlift: [
     { key: 'lockout', label: '락아웃 엉덩이 각도', unit: '°', worse: 'down', tol: 10 },
     { key: 'hipShoot', label: '엉덩이 선상승 비율', unit: '', worse: 'up', tol: 0.6, digits: 2 },
+    { key: 'barDist', label: '바벨-정강이 거리', unit: '%', worse: 'up', tol: 2 },
   ],
   row: [
     { key: 'rom', label: '최대 수축 팔꿈치 각도', unit: '°', worse: 'up', tol: 15 },
@@ -249,6 +253,7 @@ const METRICS = {
     { key: 'rom', label: '최대 수축 팔꿈치 각도', unit: '°', worse: 'up', tol: 15 },
     { key: 'elbowDrift', label: '팔꿈치 들림', unit: '°', worse: 'up', tol: 10 },
     { key: 'sway', label: '상체 반동 폭', unit: '°', worse: 'up', tol: 6 },
+    { key: 'swing', label: '상체 앞뒤 흔들림', unit: '%', worse: 'up', tol: 2, digits: 1 },
   ],
   lateral: [
     { key: 'peak', label: '최고점 팔 각도', unit: '°', worse: 'down', tol: 15 },
@@ -294,6 +299,9 @@ function repMetrics(ex, feats, rep, ctx) {
     const hipRise = a['hipY' + k] - b['hipY' + k];
     const shRise = a['shY' + k] - b['shY' + k];
     m.hipShoot = shRise > 0.01 * a.torsoLen ? hipRise / shRise : (hipRise > 0.05 * a.torsoLen ? 3 : 1);
+    // 측면 영상에서만: 당기는 동안 손목이 정강이에서 얼마나 떨어졌는지 (상체 길이 대비 %)
+    m.barDist = view === 'side'
+      ? percentile(sl.map((f) => f['bar' + side] / (f.torsoLen || 1)), 0.9) * 100 : NaN;
     if (m.lockout < 160) warn.push('락아웃 불완전 (엉덩이를 끝까지 펴지 않음)');
     if (m.hipShoot > 1.8) warn.push('엉덩이가 먼저 올라감 (허리 부담)');
   } else if (ex === 'row') {
@@ -312,6 +320,13 @@ function repMetrics(ex, feats, rep, ctx) {
     m.rom = pick(pk, s, 'elbow');
     m.elbowDrift = Math.max(...sl.map((f) => pick(f, s, 'abd')));
     m.sway = range(sl.map(lean));
+    // 정면 영상에서는 앞뒤 반동이 기울기로 안 보이고, 상체가 짧아졌다 길어지는 것으로 보임
+    if (view === 'front') {
+      const tls = sl.map((f) => f.torsoLen);
+      const med = percentile(tls, 0.5) || 1;
+      m.swing = ((percentile(tls, 0.95) - percentile(tls, 0.05)) / med) * 100;
+      if (m.swing > 3.3 && !(m.sway > 10)) warn.push('상체 반동 사용');
+    } else m.swing = NaN;
     if (m.elbowDrift > 35) warn.push('팔꿈치가 앞으로 들림');
     if (m.sway > 10) warn.push('상체 반동 사용');
     if (m.rom > 80) warn.push('끝까지 감아올리지 않음');
