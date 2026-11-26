@@ -177,3 +177,17 @@ npm run serve
 - 4번 테스트 영상으로 정확도 표 만들기 (실제 횟수 vs 앱 횟수, 정상/비정상 판정)
 - 1분 영상 분석 시간 측정 (리포트 상단 정보 참고)
 - 원스토어 상품 페이지 캡처, 다운로드 수 캡처
+
+---
+
+## 9. 웹 버전 (아이폰·PC 브라우저용)
+
+- 주소: https://ghtty0909-coder.github.io/health-care/app/ (루트 주소로 들어가도 자동 이동)
+- 앱 코드를 고친 뒤 웹 버전도 바꾸려면:
+  ```
+  npm run build:web
+  git add docs/app
+  git commit -m "웹 버전 갱신"
+  git push
+  ```
+  1~2분 뒤 GitHub Pages에 반영돼요.
