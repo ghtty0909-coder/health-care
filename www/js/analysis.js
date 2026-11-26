@@ -117,6 +117,9 @@ export function computeFeatures(p) {
     // 손목과 정강이(무릎·발목 중간) 사이 가로 거리: 바벨이 몸에서 떨어진 정도
     barL: Math.abs(g(L.lWr).x - (g(L.lKn).x + g(L.lAn).x) / 2),
     barR: Math.abs(g(L.rWr).x - (g(L.rKn).x + g(L.rAn).x) / 2),
+    // 어깨-발목 직선에서 엉덩이가 아래(+)/위(-)로 벗어난 정도 (푸쉬업 몸 일직선)
+    lineL: lineOffset(g(L.lSh), g(L.lHip), g(L.lAn)),
+    lineR: lineOffset(g(L.rSh), g(L.rHip), g(L.rAn)),
     shXL: g(L.lSh).x, shXR: g(L.rSh).x,
     hipXL: g(L.lHip).x, hipXR: g(L.rHip).x,
     torsoLen: (Math.hypot(g(L.lSh).x - g(L.lHip).x, g(L.lSh).y - g(L.lHip).y) +
@@ -126,6 +129,13 @@ export function computeFeatures(p) {
     visR: vis(L.rSh, L.rEl, L.rWr, L.rHip, L.rKn, L.rAn),
   };
   return f;
+}
+
+function lineOffset(sh, hip, an) {
+  const dx = an.x - sh.x;
+  if (Math.abs(dx) < 1e-6) return NaN;
+  const lineY = sh.y + ((an.y - sh.y) * (hip.x - sh.x)) / dx;
+  return hip.y - lineY;
 }
 
 // 정면/측면 판단 + 측면이면 카메라 쪽 몸
@@ -220,6 +230,11 @@ export const EXERCISES = {
     guide: '정면에서 촬영하세요. 허리 위 상체와 양팔 전체가 보이게 찍어주세요.',
     primary: 'elbow', activeIsMin: true, minRange: 40, phases: ['올리기', '내리기'], lift: 0,
   },
+  pushup: {
+    name: '푸쉬업', view: 'side', pattern: '맨몸·가슴',
+    guide: '옆에서 촬영하세요. 바닥 높이에 휴대폰을 두고, 머리부터 발끝까지 몸 전체가 가로로 다 나오게 찍어주세요.',
+    primary: 'elbow', activeIsMin: true, minRange: 35, phases: ['내리기', '밀기'], lift: 1,
+  },
   lateral: {
     name: '사이드 레터럴 레이즈', view: 'front', pattern: '팔·어깨',
     guide: '정면에서 촬영하세요. 양팔을 벌렸을 때 손끝까지 화면에 들어오게 찍어주세요.',
@@ -254,6 +269,10 @@ const METRICS = {
     { key: 'elbowDrift', label: '팔꿈치 들림', unit: '°', worse: 'up', tol: 10 },
     { key: 'sway', label: '상체 반동 폭', unit: '°', worse: 'up', tol: 6 },
     { key: 'swing', label: '상체 앞뒤 흔들림', unit: '%', worse: 'up', tol: 2, digits: 1 },
+  ],
+  pushup: [
+    { key: 'depth', label: '최저 팔꿈치 각도', unit: '°', worse: 'up', tol: 15 },
+    { key: 'sag', label: '허리 처짐', unit: '%', worse: 'up', tol: 8 },
   ],
   lateral: [
     { key: 'peak', label: '최고점 팔 각도', unit: '°', worse: 'down', tol: 15 },
@@ -330,6 +349,15 @@ function repMetrics(ex, feats, rep, ctx) {
     if (m.elbowDrift > 35) warn.push('팔꿈치가 앞으로 들림');
     if (m.sway > 10) warn.push('상체 반동 사용');
     if (m.rom > 80) warn.push('끝까지 감아올리지 않음');
+  } else if (ex === 'pushup') {
+    m.depth = percentile(sl.map((f) => pick(f, s, 'elbow')), 0.05);
+    // 엉덩이가 어깨-발목 직선보다 얼마나 내려갔는지/올라갔는지 (상체 길이 대비 %)
+    const offs = sl.map((f) => pick(f, s, 'line') / (f.torsoLen || 1)).filter(Number.isFinite);
+    m.sag = Math.max(0, percentile(offs, 0.9)) * 100;
+    m.pike = Math.max(0, -percentile(offs, 0.1)) * 100;
+    if (m.depth > 110) warn.push('충분히 내려가지 않음');
+    if (m.sag > 18) warn.push('허리(엉덩이)가 처짐');
+    if (m.pike > 25) warn.push('엉덩이가 너무 높음');
   } else if (ex === 'lateral') {
     m.peak = pick(pk, s, 'abd');
     m.sway = range(sl.map(lean));
@@ -466,7 +494,7 @@ function buildTips(ex, reps, s, view) {
   for (const r of reps) for (const w of r.warn) { const k = w.replace(/ \d+°/, ''); count[k] = (count[k] || 0) + 1; }
   const top = Object.entries(count).sort((a, b) => b[1] - a[1]);
   for (const [w, c] of top.slice(0, 3)) tips.push(`${reps.length}회 중 ${c}회: ${w}`);
-  if (s.breakdownRep) tips.push(`${s.breakdownRep}번째 반복부터 자세가 무너지기 시작했어요. 이 무게에서는 ${s.breakdownRep - 1}회까지가 좋은 자세로 가능한 횟수예요.`);
+  if (s.breakdownRep) tips.push(`${s.breakdownRep}번째 반복부터 자세가 무너지기 시작했어요. ${ex === 'pushup' ? '지금은' : '이 무게에서는'} ${s.breakdownRep - 1}회까지가 좋은 자세로 가능한 횟수예요.`);
   else if (reps.length > 3) tips.push('세트 끝까지 첫 3회와 비슷한 자세를 유지했어요.');
   if (view === 'front') {
     const bad = reps.filter((r) => r.m.lrDiff > 12);

@@ -78,3 +78,44 @@ assert.equal(c.view, 'front');
 assert.equal(c.summary.reps, 8);
 assert.ok(c.summary.lrDiffAvg > 20);
 console.log('OK');
+
+// 측면 푸쉬업: 마지막 2회는 얕게 내려가고 허리가 처짐
+function pushFrame(elbow, sag, noise = 0.003) {
+  const p = blank();
+  const a = 0.15, b = 0.15; // 위팔, 아래팔
+  const W = { x: 0.3, y: 0.85, v: 0.95 };
+  const d = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(elbow * R));
+  const S = { x: W.x, y: W.y - d, v: 0.95 };
+  const phi = Math.acos((b * b + d * d - a * a) / (2 * b * d));
+  const E = { x: W.x + b * Math.sin(phi), y: W.y - b * Math.cos(phi), v: 0.95 };
+  const A = { x: 0.9, y: 0.83, v: 0.95 };
+  const H = { x: S.x + (A.x - S.x) * 0.45, y: S.y + (A.y - S.y) * 0.45 + sag, v: 0.95 };
+  const K = { x: S.x + (A.x - S.x) * 0.72, y: S.y + (A.y - S.y) * 0.72 + sag * 0.5, v: 0.95 };
+  const pts = { lAn: A, lKn: K, lHip: H, lSh: S, lEl: E, lWr: W };
+  for (const [k, v] of Object.entries(pts)) p[L[k]] = v;
+  for (const k of ['rAn', 'rKn', 'rHip', 'rSh', 'rEl', 'rWr']) p[L[k]] = { ...pts['l' + k.slice(1)], x: pts['l' + k.slice(1)].x + 0.005, v: 0.4 };
+  return p.map((q) => ({ x: q.x + rnd() * noise, y: q.y + rnd() * noise, v: q.v }));
+}
+{
+  const frames = []; const fps = 15; let t = 0;
+  const reps = [[75, 0], [78, 0], [76, 0], [80, 0.005], [118, 0.07], [122, 0.08]];
+  for (let i = 0; i < fps; i++, t += 1 / fps) frames.push({ t, p: pushFrame(172, 0) });
+  for (const [bottom, sag] of reps) {
+    const n = Math.round(2 * fps);
+    for (let i = 0; i < n; i++, t += 1 / fps) {
+      const ph = Math.sin(Math.PI * i / n);
+      frames.push({ t, p: pushFrame(172 - (172 - bottom) * ph, sag * ph) });
+    }
+    for (let i = 0; i < 5; i++, t += 1 / fps) frames.push({ t, p: pushFrame(172, 0) });
+  }
+  const r = analyzeSet(frames, 'pushup');
+  console.log('pushup view', r.view, 'reps', r.summary.reps, 'breakdown', r.summary.breakdownRep);
+  console.log(r.reps.map((x) => `${x.n}: depth ${x.m.depth.toFixed(0)} sag ${x.m.sag.toFixed(0)}% score ${x.score} ${x.warn.join('/')} ${x.breakdown.join('/')}`).join('\n'));
+  assert.equal(r.view, 'side');
+  assert.equal(r.summary.reps, 6);
+  assert.equal(r.summary.breakdownRep, 5);
+  assert.ok(r.reps[5].warn.includes('충분히 내려가지 않음'));
+  assert.ok(r.reps[5].warn.includes('허리(엉덩이)가 처짐'));
+  assert.ok(r.reps[0].warn.length === 0);
+}
+console.log('OK pushup');

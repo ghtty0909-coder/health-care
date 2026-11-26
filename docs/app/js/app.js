@@ -3,7 +3,7 @@ import { listSessions, saveSession, deleteSession, clearAll } from './storage.js
 
 const VERSION = '1.0.0';
 const $ = (s) => document.querySelector(s);
-const EMOJI = { squat: '🏋️', deadlift: '⚡', row: '🚣', ohp: '🙌', curl: '💪', lateral: '🪽' };
+const EMOJI = { squat: '🏋️', deadlift: '⚡', row: '🚣', ohp: '🙌', curl: '💪', lateral: '🪽', pushup: '🤸' };
 const VIEW_LABEL = { side: '측면 촬영', front: '정면 촬영', any: '정면/측면' };
 const SIGNAL_LABEL = { knee: '무릎 각도', hip: '엉덩이 각도', elbow: '팔꿈치 각도', abd: '어깨(팔 벌림) 각도' };
 
